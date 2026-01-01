@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>X Screenshot Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #000000;
+            --text-main: #e7e9ea;
+            --text-sec: #71767b;
+            --accent: #1d9bf0;
+            --card-width: 600px;
+            --border-color: #2f3336;
+        }
+
+        body {
+            font-family: 'Roboto', 'Noto Sans JP', sans-serif;
+            background-color: #111;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px;
+            margin: 0;
+        }
+
+        .controls {
+            background: #222;
+            border: 1px solid #333;
+            padding: 24px;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 550px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        h2 { margin: 0 0 10px 0; font-size: 1.3rem; color: #fff; font-weight: 700; }
+
+        .input-row { display: flex; gap: 10px; }
+        
+        input[type="text"] {
+            flex-grow: 1;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            background: #000;
+            color: white;
+            font-size: 16px;
+            outline: none;
+        }
+        input[type="text"]:focus { border-color: var(--accent); }
+
+        button {
+            border: none;
+            padding: 12px 20px;
+            border-radius: 30px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .btn-gen { background: #fff; color: #000; }
+        .btn-gen:hover { background: #ddd; }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-save { background: var(--accent); color: white; min-width: 150px; padding: 14px; font-size: 16px; }
+        .btn-save:hover { background: #1a8cd8; }
+
+        .btn-upload { background: #00ba7c; color: white; min-width: 150px; padding: 14px; font-size: 16px; }
+        .btn-upload:hover { background: #00a06b; }
+        
+        button:disabled { opacity: 0.5; cursor: wait; }
+
+        .status-msg {
+            font-size: 0.95rem;
+            color: var(--text-sec);
+            min-height: 24px;
+            font-weight: 500;
+            word-break: break-all;
+        }
+
+        .result-box {
+            display: none;
+            margin-top: 15px;
+            background: #16181c;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+        .result-box.visible { display: block; }
+        .result-link {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: var(--accent);
+            font-family: monospace;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        /* TWEET STYLES */
+        .tweet-card-wrapper {
+            padding: 30px;
+            border: 2px dashed #333;
+            border-radius: 24px;
+            background: #161616;
+        }
+
+        .tweet-card {
+            background-color: var(--bg-color);
+            width: var(--card-width);
+            padding: 30px;
+            border-radius: 16px;
+            box-sizing: border-box;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--border-color);
+        }
+
+        .tweet-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .user-info { display: flex; align-items: center; gap: 12px; }
+        
+        .avatar-img {
+            width: 48px; height: 48px; border-radius: 50%;
+            object-fit: cover;
+            background-color: #333;
+            display: block;
+        }
+        
+        .names { display: flex; flex-direction: column; justify-content: center; line-height: 1.3; }
+        .display-name { font-weight: 700; color: var(--text-main); font-size: 16px; display: flex; align-items: center; gap: 3px; }
+        .verified-icon { width: 18px; height: 18px; fill: #1d9bf0; }
+        .handle { color: var(--text-sec); font-size: 15px; }
+        .x-logo { width: 24px; height: 24px; fill: var(--text-main); }
+
+        .tweet-content {
+            font-size: 22px; line-height: 1.4; color: var(--text-main);
+            white-space: pre-wrap; margin-top: 5px; font-weight: 400;
+        }
+
+        .media-grid {
+            margin-top: 12px; border-radius: 16px; overflow: hidden;
+            display: grid; gap: 2px; border: 1px solid var(--border-color); width: 100%;
+        }
+        .media-grid img { width: 100%; height: 100%; object-fit: cover; display: block; background: #222; }
+        .media-grid.m-1 { grid-template-columns: 1fr; }
+        .media-grid.m-2 { grid-template-columns: 1fr 1fr; height: 280px; }
+        .media-grid.m-3 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; height: 280px; }
+        .media-grid.m-3 img:first-child { grid-row: span 2; }
+        .media-grid.m-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; height: 280px; }
+
+        .quote-card {
+            border: 1px solid var(--border-color); border-radius: 12px; margin-top: 16px; padding: 12px;
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+        .quote-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+        .quote-avatar-img { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; background-color: #333; display: block; }
+        .quote-name { font-weight: 700; font-size: 15px; color: var(--text-main); display: flex; align-items: center; gap:2px; }
+        .quote-handle { color: var(--text-sec); font-size: 15px; margin-left: 2px; }
+        .quote-text { font-size: 16px; line-height: 1.4; color: var(--text-main); white-space: pre-wrap; }
+        .quote-card .media-grid { margin-top: 10px; border-radius: 12px; }
+        .quote-card .media-grid.m-2, .quote-card .media-grid.m-3, .quote-card .media-grid.m-4 { height: 200px; }
+
+        .tweet-footer {
+            border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 16px;
+            color: var(--text-sec); font-size: 15px;
+        }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <h2>X Screenshot Generator</h2>
+        <div class="input-row">
+            <input type="text" id="urlInput" placeholder="Paste tweet URL..." />
+            <button onclick="processTweet()" id="genBtn" class="btn-gen">Generate</button>
+        </div>
+        <div class="status-msg" id="statusMsg">Ready</div>
+
+        <div class="result-box" id="resultBox">
+            <div style="font-size: 12px; color: #aaa; margin-bottom: 5px;">Pixhost Direct Link:</div>
+            <input type="text" class="result-link" id="resultLink" readonly onclick="this.select()">
+        </div>
+    </div>
+
+    <div class="tweet-card-wrapper">
+        <div class="tweet-card" id="capture">
+            <div class="tweet-header">
+                <div class="user-info">
+                    <img class="avatar-img" id="mainAvatar" src="https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png" crossorigin="anonymous" />
+                    <div class="names">
+                        <div class="display-name">
+                            <span id="mainName">User</span>
+                            <svg viewBox="0 0 22 22" class="verified-icon"><g><path d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.687.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.753 1.687.882.635.132 1.294.084 1.902-.14.272.587.7 1.087 1.24 1.44.54.354 1.166.55 1.813.568.647-.018 1.275-.214 1.816-.568.54-.354.972-.853 1.245-1.44.604.223 1.26.27 1.897.14.634-.13 1.218-.43 1.687-.875.445-.47.75-1.053.882-1.687.13-.633.083-1.29-.14-1.897.585-.274 1.084-.705 1.438-1.246.355-.54.553-1.17.57-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z"></path></g></svg>
+                        </div>
+                        <div class="handle">@<span id="mainHandle">username</span></div>
+                    </div>
+                </div>
+                <svg viewBox="0 0 24 24" class="x-logo"><g><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></g></svg>
+            </div>
+
+            <div class="tweet-content" id="mainText"></div>
+            <div id="mainMediaContainer"></div>
+
+            <div class="quote-card hidden" id="quoteCard">
+                <div class="quote-header">
+                    <img class="quote-avatar-img" id="quoteAvatar" src="" crossorigin="anonymous" />
+                    <div class="quote-name">
+                        <span id="quoteName"></span>
+                        <svg viewBox="0 0 22 22" class="verified-icon" style="width:14px; height:14px;"><g><path d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.687.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.753 1.687.882.635.132 1.294.084 1.902-.14.272.587.7 1.087 1.24 1.44.54.354 1.166.55 1.813.568.647-.018 1.275-.214 1.816-.568.54-.354.972-.853 1.245-1.44.604.223 1.26.27 1.897.14.634-.13 1.218-.43 1.687-.875.445-.47.75-1.053.882-1.687.13-.633.083-1.29-.14-1.897.585-.274 1.084-.705 1.438-1.246.355-.54.553-1.17.57-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z"></path></g></svg>
+                    </div>
+                    <div class="quote-handle">@<span id="quoteHandle"></span></div>
+                </div>
+                <div class="quote-text" id="quoteText"></div>
+                <div id="quoteMediaContainer"></div>
+            </div>
+
+            <div class="tweet-footer" id="mainDate">--/--/--</div>
+        </div>
+    </div>
+    
+    <div class="action-buttons">
+        <button onclick="downloadImage()" class="btn-save" id="saveBtn" disabled>Download JPG</button>
+        <button onclick="uploadToPixhost()" class="btn-upload" id="uploadBtn" disabled>Upload to Pixhost</button>
+    </div>
+
+    <script>
+        // --- !!! WAŻNE !!! ---
+        // Wklej tutaj adres swojego Workera z Cloudflare
+        // np. const WORKER_URL = "https://pixhost-proxy.szymixsiorek.workers.dev";
+        const WORKER_URL = "https://pixhost-proxy.szymixsiorek.workers.dev"; 
+
+        async function processTweet() {
+            const url = document.getElementById('urlInput').value.trim();
+            const statusMsg = document.getElementById('statusMsg');
+            const btns = [document.getElementById('genBtn'), document.getElementById('saveBtn'), document.getElementById('uploadBtn')];
+            
+            document.getElementById('resultBox').classList.remove('visible');
+            document.getElementById('mainMediaContainer').innerHTML = '';
+            document.getElementById('quoteMediaContainer').innerHTML = '';
+            document.getElementById('quoteCard').classList.add('hidden');
+            
+            const tweetIdMatch = url.match(/\/status\/(\d+)/);
+            if (!tweetIdMatch) {
+                statusMsg.innerText = "Invalid URL";
+                statusMsg.style.color = "#ff5555";
+                return;
+            }
+            const tweetId = tweetIdMatch[1];
+
+            btns.forEach(b => b.disabled = true);
+            statusMsg.innerText = "Fetching tweet data...";
+            statusMsg.style.color = "#aaa";
+
+            try {
+                const apiUrl = `https://api.fxtwitter.com/i/status/${tweetId}`;
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`;
+                
+                const response = await fetch(proxyUrl);
+                const dataWrapper = await response.json();
+                const data = JSON.parse(dataWrapper.contents);
+
+                if (!data || !data.tweet) throw new Error("API Error or Private Account");
+                const t = data.tweet;
+
+                // Main Tweet
+                setText('mainText', t.text);
+                setText('mainName', t.author.name);
+                setText('mainHandle', t.author.screen_name);
+                setAvatar('mainAvatar', t.author.avatar_url);
+                const dateObj = new Date(t.created_timestamp * 1000);
+                setText('mainDate', formatDate(dateObj));
+
+                if (t.media && t.media.photos && t.media.photos.length > 0) {
+                    renderMediaGrid(t.media.photos, document.getElementById('mainMediaContainer'));
+                }
+
+                // Quote
+                if (t.quote) {
+                    const q = t.quote;
+                    document.getElementById('quoteCard').classList.remove('hidden');
+                    setText('quoteText', q.text);
+                    setText('quoteName', q.author.name);
+                    setText('quoteHandle', q.author.screen_name);
+                    setAvatar('quoteAvatar', q.author.avatar_url);
+                    if (q.media && q.media.photos && q.media.photos.length > 0) {
+                        renderMediaGrid(q.media.photos, document.getElementById('quoteMediaContainer'));
+                    }
+                }
+
+                statusMsg.innerText = "Ready to download or upload.";
+                statusMsg.style.color = "#4caf50";
+                btns.forEach(b => b.disabled = false);
+
+            } catch (err) {
+                console.error(err);
+                statusMsg.innerText = "Error: " + err.message;
+                statusMsg.style.color = "#ff5555";
+                document.getElementById('genBtn').disabled = false;
+            }
+        }
+
+        async function uploadToPixhost() {
+            const btn = document.getElementById('uploadBtn');
+            const statusMsg = document.getElementById('statusMsg');
+            const element = document.getElementById("capture");
+            const resultBox = document.getElementById('resultBox');
+
+            if (WORKER_URL.includes("TUTAJ_WKLEJ")) {
+                alert("Błąd konfiguracji: Nie podałeś adresu Workera w kodzie HTML!");
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.innerText = "Processing...";
+            statusMsg.innerText = "Rendering and uploading (via Cloudflare)...";
+            statusMsg.style.color = "#aaa";
+
+            try {
+                // Generate Blob
+                const canvas = await html2canvas(element, {
+                    backgroundColor: "#000000",
+                    scale: 3, 
+                    useCORS: true,
+                    allowTaint: false
+                });
+
+                canvas.toBlob(async (blob) => {
+                    const formData = new FormData();
+                    formData.append("content_type", "0");
+                    formData.append("img", blob, "tweet_snapshot.jpg");
+
+                    try {
+                        // Use your Cloudflare Worker URL
+                        const response = await fetch(WORKER_URL, {
+                            method: "POST",
+                            body: formData
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`Worker Error: ${response.status}`);
+                        }
+
+                        const data = await response.json();
+                        
+                        if (data.th_url) {
+                            const thumbUrl = data.th_url;
+                            const directLink = thumbUrl.replace(/t(\d+)\.pixhost\.to\/thumbs\//, 'img$1.pixhost.to/images/');
+                            
+                            statusMsg.innerText = "Upload successful!";
+                            statusMsg.style.color = "#00ba7c";
+                            resultBox.classList.add('visible');
+                            document.getElementById('resultLink').value = directLink;
+                        } else {
+                            throw new Error("Invalid response from Pixhost.");
+                        }
+
+                    } catch (uploadErr) {
+                        console.error(uploadErr);
+                        statusMsg.innerText = uploadErr.message;
+                        statusMsg.style.color = "#ff5555";
+                    } finally {
+                        btn.innerText = "Upload to Pixhost";
+                        btn.disabled = false;
+                    }
+
+                }, 'image/jpeg', 0.95);
+
+            } catch (err) {
+                console.error(err);
+                statusMsg.innerText = "Error rendering image.";
+                btn.disabled = false;
+                btn.innerText = "Upload to Pixhost";
+            }
+        }
+
+        // Utils
+        function setText(id, text) { document.getElementById(id).innerText = text || ""; }
+        
+        function setAvatar(id, url) {
+            if (!url) return;
+            // High quality replacement
+            let cleanUrl = url.replace('_normal', '_400x400').replace('_bigger', '_400x400').replace('_mini', '_400x400');
+            const proxyUrl = `https://wsrv.nl/?url=${encodeURIComponent(cleanUrl)}&output=png`;
+            document.getElementById(id).src = proxyUrl;
+        }
+
+        function renderMediaGrid(photos, container) {
+            if (!photos) return;
+            const count = Math.min(photos.length, 4);
+            const grid = document.createElement('div');
+            grid.className = `media-grid m-${count}`;
+            photos.slice(0, count).forEach(photo => {
+                const img = document.createElement('img');
+                img.crossOrigin = "anonymous";
+                img.src = `https://wsrv.nl/?url=${encodeURIComponent(photo.url)}&output=jpg&q=85`;
+                grid.appendChild(img);
+            });
+            container.appendChild(grid);
+        }
+
+        function formatDate(date) {
+            return date.toLocaleString('en-US', { 
+                hour: 'numeric', minute: '2-digit', hour12: true,
+                month: 'short', day: 'numeric', year: 'numeric'
+            }).replace(',', ' ·');
+        }
+
+        function downloadImage() {
+            const el = document.getElementById("capture");
+            const btn = document.getElementById('saveBtn');
+            btn.innerText = "Processing...";
+            btn.disabled = true;
+            html2canvas(el, { 
+                backgroundColor: "#000000", 
+                scale: 3,
+                useCORS: true, 
+                allowTaint: false 
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'tweet_gen.jpg';
+                link.href = canvas.toDataURL("image/jpeg", 0.95);
+                link.click();
+                btn.innerText = "Download JPG";
+                btn.disabled = false;
+            });
+        }
+    </script>
+</body>
+</html>
