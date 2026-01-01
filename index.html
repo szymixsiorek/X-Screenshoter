@@ -9,6 +9,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
+        /* GLOBAL RESET FOR BOX SIZING (Fixes overflow issues) */
+        * { box-sizing: border-box; }
+
         :root {
             --bg-color: #000000;
             --text-main: #e7e9ea;
@@ -56,6 +59,7 @@
             color: white;
             font-size: 16px;
             outline: none;
+            width: 100%; /* Ensure it doesn't overflow parent */
         }
         input[type="text"]:focus { border-color: var(--accent); }
 
@@ -69,7 +73,7 @@
             transition: all 0.2s;
         }
         
-        .btn-gen { background: #fff; color: #000; }
+        .btn-gen { background: #fff; color: #000; white-space: nowrap; }
         .btn-gen:hover { background: #ddd; }
         
         .action-buttons {
@@ -96,6 +100,7 @@
             word-break: break-all;
         }
 
+        /* --- UPDATED RESULT BOX STYLES --- */
         .result-box {
             display: none;
             margin-top: 15px;
@@ -103,17 +108,42 @@
             padding: 15px;
             border-radius: 8px;
             border: 1px solid #333;
+            width: 100%; /* Ensure container fits parent */
         }
         .result-box.visible { display: block; }
+        
+        .result-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
         .result-link {
-            width: 100%;
-            background: transparent;
-            border: none;
+            flex-grow: 1; /* Takes available space */
+            min-width: 0; /* CRITICAL: Allows flex item to shrink below content size */
+            background: #000;
+            border: 1px solid #333;
             color: var(--accent);
             font-family: monospace;
             font-size: 14px;
-            margin-top: 5px;
+            padding: 8px 10px;
+            border-radius: 6px;
         }
+
+        .btn-open-link {
+            background: #333;
+            color: white;
+            text-decoration: none;
+            padding: 9px 15px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: bold;
+            white-space: nowrap;
+            border: 1px solid #444;
+            transition: background 0.2s;
+        }
+        .btn-open-link:hover { background: #444; }
+
 
         /* TWEET STYLES */
         .tweet-card-wrapper {
@@ -121,11 +151,14 @@
             border: 2px dashed #333;
             border-radius: 24px;
             background: #161616;
+            max-width: 100%; /* Prevent overflow on small screens */
+            overflow-x: auto;
         }
 
         .tweet-card {
             background-color: var(--bg-color);
             width: var(--card-width);
+            min-width: var(--card-width); /* Fixed width for canvas generation */
             padding: 30px;
             border-radius: 16px;
             box-sizing: border-box;
@@ -197,8 +230,11 @@
         <div class="status-msg" id="statusMsg">Ready</div>
 
         <div class="result-box" id="resultBox">
-            <div style="font-size: 12px; color: #aaa; margin-bottom: 5px;">Pixhost Direct Link:</div>
-            <input type="text" class="result-link" id="resultLink" readonly onclick="this.select()">
+            <div style="font-size: 12px; color: #aaa; margin-bottom: 8px;">Pixhost Direct Link:</div>
+            <div class="result-row">
+                <input type="text" class="result-link" id="resultLink" readonly onclick="this.select()">
+                <a id="openLinkBtn" href="#" target="_blank" class="btn-open-link">Open</a>
+            </div>
         </div>
     </div>
 
@@ -244,9 +280,7 @@
     </div>
 
     <script>
-        // --- !!! WAŻNE !!! ---
-        // Wklej tutaj adres swojego Workera z Cloudflare
-        // np. const WORKER_URL = "https://pixhost-proxy.szymixsiorek.workers.dev";
+        // Adres Twojego Workera (zostaje bez zmian)
         const WORKER_URL = "https://pixhost-proxy.szymixsiorek.workers.dev"; 
 
         async function processTweet() {
@@ -282,7 +316,6 @@
                 if (!data || !data.tweet) throw new Error("API Error or Private Account");
                 const t = data.tweet;
 
-                // Main Tweet
                 setText('mainText', t.text);
                 setText('mainName', t.author.name);
                 setText('mainHandle', t.author.screen_name);
@@ -294,7 +327,6 @@
                     renderMediaGrid(t.media.photos, document.getElementById('mainMediaContainer'));
                 }
 
-                // Quote
                 if (t.quote) {
                     const q = t.quote;
                     document.getElementById('quoteCard').classList.remove('hidden');
@@ -336,7 +368,6 @@
             statusMsg.style.color = "#aaa";
 
             try {
-                // Generate Blob
                 const canvas = await html2canvas(element, {
                     backgroundColor: "#000000",
                     scale: 3, 
@@ -350,7 +381,6 @@
                     formData.append("img", blob, "tweet_snapshot.jpg");
 
                     try {
-                        // Use your Cloudflare Worker URL
                         const response = await fetch(WORKER_URL, {
                             method: "POST",
                             body: formData
@@ -368,8 +398,12 @@
                             
                             statusMsg.innerText = "Upload successful!";
                             statusMsg.style.color = "#00ba7c";
+                            
+                            // Show result with link and open button
                             resultBox.classList.add('visible');
                             document.getElementById('resultLink').value = directLink;
+                            document.getElementById('openLinkBtn').href = directLink;
+
                         } else {
                             throw new Error("Invalid response from Pixhost.");
                         }
@@ -393,12 +427,10 @@
             }
         }
 
-        // Utils
         function setText(id, text) { document.getElementById(id).innerText = text || ""; }
         
         function setAvatar(id, url) {
             if (!url) return;
-            // High quality replacement
             let cleanUrl = url.replace('_normal', '_400x400').replace('_bigger', '_400x400').replace('_mini', '_400x400');
             const proxyUrl = `https://wsrv.nl/?url=${encodeURIComponent(cleanUrl)}&output=png`;
             document.getElementById(id).src = proxyUrl;
@@ -446,5 +478,4 @@
         }
     </script>
 </body>
-
 </html>
