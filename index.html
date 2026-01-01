@@ -203,6 +203,42 @@
             flex-direction: column;
             border: 1px solid var(--border-color);
         }
+        
+        .original-tweet-card {
+            background-color: var(--bg-color);
+            width: var(--card-width);
+            min-width: var(--card-width);
+            padding: 30px;
+            padding-bottom: 20px;
+            border-radius: 16px 16px 0 0;
+            box-sizing: border-box;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--border-color);
+            border-bottom: none;
+        }
+        
+        .reply-tweet-card {
+            background-color: var(--bg-color);
+            width: var(--card-width);
+            min-width: var(--card-width);
+            padding: 30px;
+            border-radius: 0 0 16px 16px;
+            box-sizing: border-box;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--border-color);
+            border-top: 1px solid #2f3336;
+        }
+        
+        .reply-connector {
+            width: 2px;
+            background: var(--border-color);
+            height: 20px;
+            margin-left: 54px;
+        }
 
         .tweet-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
         .user-info { display: flex; align-items: center; gap: 12px; }
@@ -220,7 +256,10 @@
         .handle { color: var(--text-sec); font-size: 15px; }
         .x-logo { width: 30px; height: 30px; fill: var(--text-main); }
         
-        .tweet-link { color: var(--accent); text-decoration: none; }
+        .tweet-link { 
+            color: var(--accent); 
+            text-decoration: none;
+        }
         
         .replying-to {
             color: var(--text-sec);
@@ -309,39 +348,66 @@
     </div>
 
     <div class="tweet-card-wrapper">
-        <div class="tweet-card" id="capture">
-            <div class="tweet-header">
-                <div class="user-info">
-                    <img class="avatar-img" id="mainAvatar" src="https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png" crossorigin="anonymous" />
-                    <div class="names">
-                        <div class="display-name">
-                            <span id="mainName">User</span>
-                            <svg viewBox="0 0 22 22" class="verified-icon"><g><path d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.687.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.753 1.687.882.635.132 1.294.084 1.902-.14.272.587.7 1.087 1.24 1.44.54.354 1.166.55 1.813.568.647-.018 1.275-.214 1.816-.568.54-.354.972-.853 1.245-1.44.604.223 1.26.27 1.897.14.634-.13 1.218-.43 1.687-.875.445-.47.75-1.053.882-1.687.13-.633.083-1.29-.14-1.897.585-.274 1.084-.705 1.438-1.246.355-.54.553-1.17.57-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z"></path></g></svg>
+        <div id="captureContainer">
+            <!-- Original Tweet (shown only for replies) -->
+            <div class="original-tweet-card hidden" id="originalTweet">
+                <div class="tweet-header">
+                    <div class="user-info">
+                        <img class="avatar-img" id="origAvatar" src="" crossorigin="anonymous" />
+                        <div class="names">
+                            <div class="display-name">
+                                <span id="origName"></span>
+                                <svg viewBox="0 0 22 22" class="verified-icon"><g><path d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.687.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.753 1.687.882.635.132 1.294.084 1.902-.14.272.587.7 1.087 1.24 1.44.54.354 1.166.55 1.813.568.647-.018 1.275-.214 1.816-.568.54-.354.972-.853 1.245-1.44.604.223 1.26.27 1.897.14.634-.13 1.218-.43 1.687-.875.445-.47.75-1.053.882-1.687.13-.633.083-1.29-.14-1.897.585-.274 1.084-.705 1.438-1.246.355-.54.553-1.17.57-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z"></path></g></svg>
+                            </div>
+                            <div class="handle">@<span id="origHandle"></span></div>
                         </div>
-                        <div class="handle">@<span id="mainHandle">username</span></div>
                     </div>
                 </div>
-                <svg viewBox="0 0 24 24" class="x-logo"><g><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></g></svg>
+
+                <div class="tweet-content" id="origText"></div>
+                <div id="origMediaContainer"></div>
+                
+                <div class="tweet-footer" id="origDate"></div>
             </div>
-
-            <div class="replying-to hidden" id="replyingTo"></div>
-            <div class="tweet-content" id="mainText"></div>
-            <div id="mainMediaContainer"></div>
-
-            <div class="quote-card hidden" id="quoteCard">
-                <div class="quote-header">
-                    <img class="quote-avatar-img" id="quoteAvatar" src="" crossorigin="anonymous" />
-                    <div class="quote-name">
-                        <span id="quoteName"></span>
-                        <svg viewBox="0 0 22 22" class="verified-icon" style="width:14px; height:14px;"><g><path d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.687.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.753 1.687.882.635.132 1.294.084 1.902-.14.272.587.7 1.087 1.24 1.44.54.354 1.166.55 1.813.568.647-.018 1.275-.214 1.816-.568.54-.354.972-.853 1.245-1.44.604.223 1.26.27 1.897.14.634-.13 1.218-.43 1.687-.875.445-.47.75-1.053.882-1.687.13-.633.083-1.29-.14-1.897.585-.274 1.084-.705 1.438-1.246.355-.54.553-1.17.57-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z"></path></g></svg>
+            
+            <!-- Reply Connector Line -->
+            <div class="reply-connector hidden" id="replyConnector"></div>
+            
+            <!-- Main/Reply Tweet -->
+            <div class="tweet-card" id="capture">
+                <div class="tweet-header">
+                    <div class="user-info">
+                        <img class="avatar-img" id="mainAvatar" src="https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png" crossorigin="anonymous" />
+                        <div class="names">
+                            <div class="display-name">
+                                <span id="mainName">User</span>
+                                <svg viewBox="0 0 22 22" class="verified-icon"><g><path d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.687.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.753 1.687.882.635.132 1.294.084 1.902-.14.272.587.7 1.087 1.24 1.44.54.354 1.166.55 1.813.568.647-.018 1.275-.214 1.816-.568.54-.354.972-.853 1.245-1.44.604.223 1.26.27 1.897.14.634-.13 1.218-.43 1.687-.875.445-.47.75-1.053.882-1.687.13-.633.083-1.29-.14-1.897.585-.274 1.084-.705 1.438-1.246.355-.54.553-1.17.57-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z"></path></g></svg>
+                            </div>
+                            <div class="handle">@<span id="mainHandle">username</span></div>
+                        </div>
                     </div>
-                    <div class="quote-handle">@<span id="quoteHandle"></span></div>
+                    <svg viewBox="0 0 24 24" class="x-logo"><g><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></g></svg>
                 </div>
-                <div class="quote-text" id="quoteText"></div>
-                <div id="quoteMediaContainer"></div>
-            </div>
 
-            <div class="tweet-footer" id="mainDate">--/--/--</div>
+                <div class="replying-to hidden" id="replyingTo"></div>
+                <div class="tweet-content" id="mainText"></div>
+                <div id="mainMediaContainer"></div>
+
+                <div class="quote-card hidden" id="quoteCard">
+                    <div class="quote-header">
+                        <img class="quote-avatar-img" id="quoteAvatar" src="" crossorigin="anonymous" />
+                        <div class="quote-name">
+                            <span id="quoteName"></span>
+                            <svg viewBox="0 0 22 22" class="verified-icon" style="width:14px; height:14px;"><g><path d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.687.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.753 1.687.882.635.132 1.294.084 1.902-.14.272.587.7 1.087 1.24 1.44.54.354 1.166.55 1.813.568.647-.018 1.275-.214 1.816-.568.54-.354.972-.853 1.245-1.44.604.223 1.26.27 1.897.14.634-.13 1.218-.43 1.687-.875.445-.47.75-1.053.882-1.687.13-.633.083-1.29-.14-1.897.585-.274 1.084-.705 1.438-1.246.355-.54.553-1.17.57-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z"></path></g></svg>
+                        </div>
+                        <div class="quote-handle">@<span id="quoteHandle"></span></div>
+                    </div>
+                    <div class="quote-text" id="quoteText"></div>
+                    <div id="quoteMediaContainer"></div>
+                </div>
+
+                <div class="tweet-footer" id="mainDate">--/--/--</div>
+            </div>
         </div>
     </div>
     
@@ -452,8 +518,15 @@
             document.getElementById('resultBox').classList.remove('visible');
             document.getElementById('mainMediaContainer').innerHTML = '';
             document.getElementById('quoteMediaContainer').innerHTML = '';
+            document.getElementById('origMediaContainer').innerHTML = '';
             document.getElementById('quoteCard').classList.add('hidden');
             document.getElementById('replyingTo').classList.add('hidden');
+            document.getElementById('originalTweet').classList.add('hidden');
+            document.getElementById('replyConnector').classList.add('hidden');
+            
+            // Reset card styling
+            const captureCard = document.getElementById('capture');
+            captureCard.className = 'tweet-card';
             
             const tweetIdMatch = url.match(/\/status\/(\d+)/);
             if (!tweetIdMatch) {
@@ -480,19 +553,63 @@
 
                 statusMsg.innerHTML = "Loading images...<span class='loading-spinner'></span>";
 
-                // Set text content first
+                // Check if it's a reply and fetch original tweet
+                let isReply = false;
+                if (t.replying_to || t.reply_to || t.replying_to_status) {
+                    const replyToId = t.replying_to_status;
+                    if (replyToId) {
+                        isReply = true;
+                        statusMsg.innerHTML = "Loading original tweet...<span class='loading-spinner'></span>";
+                        
+                        try {
+                            const origApiUrl = `https://api.fxtwitter.com/i/status/${replyToId}`;
+                            const origResponse = await fetchWithProxy(origApiUrl);
+                            const origText = await origResponse.text();
+                            const origData = JSON.parse(origText);
+                            
+                            if (origData && origData.tweet) {
+                                const ot = origData.tweet;
+                                
+                                // Show original tweet
+                                document.getElementById('originalTweet').classList.remove('hidden');
+                                document.getElementById('replyConnector').classList.remove('hidden');
+                                captureCard.className = 'reply-tweet-card';
+                                
+                                // Populate original tweet
+                                setFormattedText('origText', ot.text);
+                                setText('origName', ot.author.name);
+                                setText('origHandle', ot.author.screen_name);
+                                
+                                const origDateObj = new Date(ot.created_timestamp * 1000);
+                                setText('origDate', formatDate(origDateObj));
+                                
+                                const origAvatarUrl = getProxiedImageUrl(ot.author.avatar_url);
+                                await preloadImage(origAvatarUrl).then(() => {
+                                    document.getElementById('origAvatar').src = origAvatarUrl;
+                                }).catch(err => console.log('Original avatar load failed:', err));
+                                
+                                // Original tweet media
+                                if (ot.media && ot.media.photos && ot.media.photos.length > 0) {
+                                    await renderMediaGrid(ot.media.photos, document.getElementById('origMediaContainer'));
+                                }
+                            }
+                        } catch (err) {
+                            console.log('Could not load original tweet:', err);
+                        }
+                    }
+                }
+
+                // Set main tweet content
                 setFormattedText('mainText', t.text);
                 setText('mainName', t.author.name);
                 setText('mainHandle', t.author.screen_name);
                 
-                // Check if it's a reply
-                if (t.replying_to || t.reply_to) {
+                // Show "Replying to" text
+                if (isReply && (t.replying_to || t.reply_to)) {
                     const replyUsername = t.replying_to || t.reply_to;
                     const replyEl = document.getElementById('replyingTo');
                     replyEl.innerHTML = `Replying to <span class="tweet-link">@${replyUsername}</span>`;
                     replyEl.classList.remove('hidden');
-                } else {
-                    document.getElementById('replyingTo').classList.add('hidden');
                 }
                 
                 const dateObj = new Date(t.created_timestamp * 1000);
@@ -592,7 +709,11 @@
         async function uploadToPixhost() {
             const btn = document.getElementById('uploadBtn');
             const statusMsg = document.getElementById('statusMsg');
-            const element = document.getElementById("capture");
+            
+            // Capture the container with both tweets if reply is shown
+            const isReplyShown = !document.getElementById('originalTweet').classList.contains('hidden');
+            const element = isReplyShown ? document.getElementById('captureContainer') : document.getElementById("capture");
+            
             const resultBox = document.getElementById('resultBox');
 
             if (WORKER_URL.includes("TUTAJ_WKLEJ")) {
@@ -688,9 +809,12 @@
         }
 
         async function downloadImage() {
-            const el = document.getElementById("capture");
             const btn = document.getElementById('saveBtn');
             const statusMsg = document.getElementById('statusMsg');
+            
+            // Capture the container with both tweets if reply is shown
+            const isReplyShown = !document.getElementById('originalTweet').classList.contains('hidden');
+            const el = isReplyShown ? document.getElementById('captureContainer') : document.getElementById("capture");
             
             btn.innerHTML = "Processing...<span class='loading-spinner'></span>";
             btn.disabled = true;
@@ -700,7 +824,7 @@
                 const quality = parseInt(document.getElementById('qualitySelect').value);
                 
                 const canvas = await html2canvas(el, { 
-                    backgroundColor: "#000000", 
+                    backgroundColor: "#000000",
                     scale: quality,
                     useCORS: true, 
                     allowTaint: false,
