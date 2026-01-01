@@ -247,10 +247,8 @@
         .reply-connector {
             width: 2px;
             background: #2f3336;
-            height: 12px;
+            height: 8px;
             margin-left: 23px;
-            margin-top: -8px;
-            margin-bottom: -8px;
         }
 
         .tweet-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
@@ -333,7 +331,7 @@
         <h2>X Screenshot Generator</h2>
         <div class="input-row">
             <input type="text" id="urlInput" placeholder="Paste tweet URL..." />
-            <button onclick="processTweet()" id="genBtn" class="btn-gen">Generate</button>
+            <button onclick="console.log('Generate button clicked'); processTweet();" id="genBtn" class="btn-gen">Generate</button>
         </div>
         <div class="status-msg" id="statusMsg">Ready</div>
 
@@ -458,17 +456,21 @@
             for (let i = 0; i < proxies.length; i++) {
                 try {
                     const proxyUrl = proxies[i](url);
+                    console.log(`Trying proxy ${i + 1}/${proxies.length}:`, proxyUrl);
                     const response = await fetchWithTimeout(proxyUrl, 8000);
                     
                     if (response.ok) {
+                        console.log(`Proxy ${i + 1} succeeded!`);
                         return response;
                     }
+                    console.log(`Proxy ${i + 1} returned status:`, response.status);
                 } catch (error) {
                     lastError = error;
-                    console.log(`Proxy ${i + 1} failed, trying next...`);
+                    console.log(`Proxy ${i + 1} failed:`, error.message);
                 }
             }
             
+            console.error('All proxies failed. Last error:', lastError);
             throw lastError || new Error('All proxies failed');
         }
 
@@ -538,7 +540,9 @@
         }
 
         async function processTweet() {
+            console.log('processTweet called');
             const url = document.getElementById('urlInput').value.trim();
+            console.log('URL:', url);
             const statusMsg = document.getElementById('statusMsg');
             const btns = [document.getElementById('genBtn'), document.getElementById('saveBtn'), document.getElementById('uploadBtn')];
             
@@ -547,7 +551,6 @@
             document.getElementById('quoteMediaContainer').innerHTML = '';
             document.getElementById('origMediaContainer').innerHTML = '';
             document.getElementById('quoteCard').classList.add('hidden');
-            document.getElementById('replyingTo').classList.add('hidden');
             document.getElementById('originalTweet').classList.add('hidden');
             document.getElementById('replyConnector').classList.add('hidden');
             
@@ -557,11 +560,13 @@
             
             const tweetIdMatch = url.match(/\/status\/(\d+)/);
             if (!tweetIdMatch) {
-                statusMsg.innerText = "Invalid URL";
+                statusMsg.innerText = "Invalid URL - please paste a full X/Twitter link";
                 statusMsg.style.color = "#ff5555";
+                console.error('Invalid URL format');
                 return;
             }
             const tweetId = tweetIdMatch[1];
+            console.log('Tweet ID:', tweetId);
 
             btns.forEach(b => b.disabled = true);
             statusMsg.innerHTML = "Fetching tweet data...<span class='loading-spinner'></span>";
@@ -569,11 +574,15 @@
 
             try {
                 const apiUrl = `https://api.fxtwitter.com/i/status/${tweetId}`;
+                console.log('Fetching from:', apiUrl);
                 
                 // Try with proxy fallback
                 const response = await fetchWithProxy(apiUrl);
+                console.log('Response received:', response.status);
                 const text = await response.text();
+                console.log('Response text length:', text.length);
                 const data = JSON.parse(text);
+                console.log('Parsed data:', data);
 
                 if (!data || !data.tweet) throw new Error("Tweet not found or private");
                 const t = data.tweet;
@@ -633,9 +642,6 @@
                 setText('mainHandle', t.author.screen_name);
                 setVerifiedBadge('mainVerified', t.author);
                 
-                // Hide "Replying to" text for cleaner look (as shown in reference images)
-                document.getElementById('replyingTo').classList.add('hidden');
-                
                 const dateObj = new Date(t.created_timestamp * 1000);
                 setText('mainDate', formatDate(dateObj));
 
@@ -686,8 +692,9 @@
                 btns.forEach(b => b.disabled = false);
 
             } catch (err) {
-                console.error(err);
-                statusMsg.innerText = "Error: " + (err.message || "Failed to fetch tweet");
+                console.error('Error in processTweet:', err);
+                console.error('Error stack:', err.stack);
+                statusMsg.innerText = "Error: " + (err.message || "Failed to fetch tweet. Check console for details.");
                 statusMsg.style.color = "#ff5555";
                 document.getElementById('genBtn').disabled = false;
             }
@@ -875,8 +882,15 @@
 
         // Allow Enter key to trigger generate
         document.getElementById('urlInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') processTweet();
+            if (e.key === 'Enter') {
+                console.log('Enter key pressed');
+                processTweet();
+            }
         });
+        
+        // Log when script loads
+        console.log('X Screenshot Generator loaded successfully');
+        console.log('Worker URL:', WORKER_URL);
     </script>
 </body>
 </html>
