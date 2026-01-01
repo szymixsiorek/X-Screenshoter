@@ -190,6 +190,10 @@
             max-width: 100%;
             overflow-x: auto;
         }
+        
+        #captureContainer {
+            background: transparent;
+        }
 
         .tweet-card {
             background-color: var(--bg-color);
@@ -209,7 +213,7 @@
             width: var(--card-width);
             min-width: var(--card-width);
             padding: 30px;
-            padding-bottom: 20px;
+            padding-bottom: 16px;
             border-radius: 16px 16px 0 0;
             box-sizing: border-box;
             position: relative;
@@ -219,11 +223,18 @@
             border-bottom: none;
         }
         
+        .original-tweet-card .tweet-footer {
+            border-top: none;
+            padding-top: 12px;
+            margin-top: 12px;
+        }
+        
         .reply-tweet-card {
             background-color: var(--bg-color);
             width: var(--card-width);
             min-width: var(--card-width);
             padding: 30px;
+            padding-top: 16px;
             border-radius: 0 0 16px 16px;
             box-sizing: border-box;
             position: relative;
@@ -235,9 +246,11 @@
         
         .reply-connector {
             width: 2px;
-            background: var(--border-color);
-            height: 20px;
-            margin-left: 54px;
+            background: #2f3336;
+            height: 12px;
+            margin-left: 23px;
+            margin-top: -8px;
+            margin-bottom: -8px;
         }
 
         .tweet-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
@@ -253,19 +266,14 @@
         .names { display: flex; flex-direction: column; justify-content: center; line-height: 1.3; }
         .display-name { font-weight: 700; color: var(--text-main); font-size: 16px; display: flex; align-items: center; gap: 3px; }
         .verified-icon { width: 18px; height: 18px; fill: #1d9bf0; }
+        .verified-icon.gold { fill: #ffd700; }
+        .verified-icon.hidden { display: none; }
         .handle { color: var(--text-sec); font-size: 15px; }
         .x-logo { width: 30px; height: 30px; fill: var(--text-main); }
         
         .tweet-link { 
             color: var(--accent); 
             text-decoration: none;
-        }
-        
-        .replying-to {
-            color: var(--text-sec);
-            font-size: 15px;
-            margin-bottom: 8px;
-            margin-top: 2px;
         }
 
         .tweet-content {
@@ -389,7 +397,6 @@
                     <svg viewBox="0 0 24 24" class="x-logo"><g><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></g></svg>
                 </div>
 
-                <div class="replying-to hidden" id="replyingTo"></div>
                 <div class="tweet-content" id="mainText"></div>
                 <div id="mainMediaContainer"></div>
 
@@ -463,6 +470,26 @@
             }
             
             throw lastError || new Error('All proxies failed');
+        }
+
+        // Set verified badge
+        function setVerifiedBadge(id, author) {
+            const badge = document.getElementById(id);
+            if (!badge) return;
+            
+            if (author.verified || author.blue_verified || author.verified_type) {
+                badge.classList.remove('hidden');
+                
+                // Check for gold badge (business/organization)
+                if (author.verified_type === 'Business' || author.verified_type === 'Government' || 
+                    author.blue_verified === false && author.verified === true) {
+                    badge.classList.add('gold');
+                } else {
+                    badge.classList.remove('gold');
+                }
+            } else {
+                badge.classList.add('hidden');
+            }
         }
 
         // Format text with blue hashtags and mentions
@@ -579,6 +606,7 @@
                                 setFormattedText('origText', ot.text);
                                 setText('origName', ot.author.name);
                                 setText('origHandle', ot.author.screen_name);
+                                setVerifiedBadge('origVerified', ot.author);
                                 
                                 const origDateObj = new Date(ot.created_timestamp * 1000);
                                 setText('origDate', formatDate(origDateObj));
@@ -603,14 +631,10 @@
                 setFormattedText('mainText', t.text);
                 setText('mainName', t.author.name);
                 setText('mainHandle', t.author.screen_name);
+                setVerifiedBadge('mainVerified', t.author);
                 
-                // Show "Replying to" text
-                if (isReply && (t.replying_to || t.reply_to)) {
-                    const replyUsername = t.replying_to || t.reply_to;
-                    const replyEl = document.getElementById('replyingTo');
-                    replyEl.innerHTML = `Replying to <span class="tweet-link">@${replyUsername}</span>`;
-                    replyEl.classList.remove('hidden');
-                }
+                // Hide "Replying to" text for cleaner look (as shown in reference images)
+                document.getElementById('replyingTo').classList.add('hidden');
                 
                 const dateObj = new Date(t.created_timestamp * 1000);
                 setText('mainDate', formatDate(dateObj));
@@ -639,6 +663,7 @@
                     setFormattedText('quoteText', q.text);
                     setText('quoteName', q.author.name);
                     setText('quoteHandle', q.author.screen_name);
+                    setVerifiedBadge('quoteVerified', q.author);
                     
                     const quoteAvatarUrl = getProxiedImageUrl(q.author.avatar_url);
                     imagePromises.push(
