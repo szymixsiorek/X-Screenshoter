@@ -247,7 +247,7 @@
         .reply-connector {
             width: 2px;
             background: #2f3336;
-            height: 8px;
+            height: 12px;
             margin-left: 23px;
         }
 
@@ -264,10 +264,11 @@
         .names { display: flex; flex-direction: column; justify-content: center; line-height: 1.3; }
         .display-name { font-weight: 700; color: var(--text-main); font-size: 16px; display: flex; align-items: center; gap: 3px; }
         .verified-icon { width: 18px; height: 18px; fill: #1d9bf0; }
-        .verified-icon.gold { fill: #ffd700; }
+        .verified-icon.gold { fill: #d4af37; }
         .verified-icon.hidden { display: none; }
         .handle { color: var(--text-sec); font-size: 15px; }
         .x-logo { width: 30px; height: 30px; fill: var(--text-main); }
+        .x-logo.hidden { display: none; }
         
         .tweet-link { 
             color: var(--accent); 
@@ -428,7 +429,7 @@
         const CORS_PROXIES = [
             url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
             url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-            url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
+            url => url // Try direct fetch as last resort
         ];
 
         // Fetch with timeout
@@ -456,21 +457,16 @@
             for (let i = 0; i < proxies.length; i++) {
                 try {
                     const proxyUrl = proxies[i](url);
-                    console.log(`Trying proxy ${i + 1}/${proxies.length}:`, proxyUrl);
                     const response = await fetchWithTimeout(proxyUrl, 8000);
                     
                     if (response.ok) {
-                        console.log(`Proxy ${i + 1} succeeded!`);
                         return response;
                     }
-                    console.log(`Proxy ${i + 1} returned status:`, response.status);
                 } catch (error) {
                     lastError = error;
-                    console.log(`Proxy ${i + 1} failed:`, error.message);
                 }
             }
             
-            console.error('All proxies failed. Last error:', lastError);
             throw lastError || new Error('All proxies failed');
         }
 
@@ -479,13 +475,32 @@
             const badge = document.getElementById(id);
             if (!badge) return;
             
-            if (author.verified || author.blue_verified || author.verified_type) {
+            console.log('Setting badge for', id, 'author:', author.screen_name, 'verified:', author.verified, 'blue_verified:', author.blue_verified, 'verified_type:', author.verified_type);
+            
+            // Check if verified
+            const isVerified = author.verified || author.blue_verified || author.verified_type;
+            
+            if (isVerified) {
                 badge.classList.remove('hidden');
                 
-                // Check for gold badge (business/organization)
-                if (author.verified_type === 'Business' || author.verified_type === 'Government' || 
-                    author.blue_verified === false && author.verified === true) {
+                // List of known gold verified accounts (AI bots, official business accounts)
+                const goldVerifiedAccounts = ['grok', 'openai', 'anthropicai', 'googlebard', 'claude'];
+                const screenNameLower = (author.screen_name || '').toLowerCase();
+                
+                // Check for gold badge
+                const isGoldVerified = 
+                    author.verified_type === 'Business' || 
+                    author.verified_type === 'business' ||
+                    author.verified_type === 'Government' ||
+                    author.verified_type === 'government' ||
+                    goldVerifiedAccounts.includes(screenNameLower) ||
+                    (author.verified && author.blue_verified === false);
+                
+                console.log('Is gold verified:', isGoldVerified, 'for', screenNameLower);
+                
+                if (isGoldVerified) {
                     badge.classList.add('gold');
+                    console.log('Added gold class to', id);
                 } else {
                     badge.classList.remove('gold');
                 }
@@ -540,9 +555,7 @@
         }
 
         async function processTweet() {
-            console.log('processTweet called');
             const url = document.getElementById('urlInput').value.trim();
-            console.log('URL:', url);
             const statusMsg = document.getElementById('statusMsg');
             const btns = [document.getElementById('genBtn'), document.getElementById('saveBtn'), document.getElementById('uploadBtn')];
             
@@ -553,6 +566,7 @@
             document.getElementById('quoteCard').classList.add('hidden');
             document.getElementById('originalTweet').classList.add('hidden');
             document.getElementById('replyConnector').classList.add('hidden');
+            document.getElementById('mainXLogo').classList.remove('hidden'); // Show X logo by default
             
             // Reset card styling
             const captureCard = document.getElementById('capture');
@@ -562,11 +576,9 @@
             if (!tweetIdMatch) {
                 statusMsg.innerText = "Invalid URL - please paste a full X/Twitter link";
                 statusMsg.style.color = "#ff5555";
-                console.error('Invalid URL format');
                 return;
             }
             const tweetId = tweetIdMatch[1];
-            console.log('Tweet ID:', tweetId);
 
             btns.forEach(b => b.disabled = true);
             statusMsg.innerHTML = "Fetching tweet data...<span class='loading-spinner'></span>";
@@ -574,15 +586,11 @@
 
             try {
                 const apiUrl = `https://api.fxtwitter.com/i/status/${tweetId}`;
-                console.log('Fetching from:', apiUrl);
                 
                 // Try with proxy fallback
                 const response = await fetchWithProxy(apiUrl);
-                console.log('Response received:', response.status);
                 const text = await response.text();
-                console.log('Response text length:', text.length);
                 const data = JSON.parse(text);
-                console.log('Parsed data:', data);
 
                 if (!data || !data.tweet) throw new Error("Tweet not found or private");
                 const t = data.tweet;
@@ -609,6 +617,7 @@
                                 // Show original tweet
                                 document.getElementById('originalTweet').classList.remove('hidden');
                                 document.getElementById('replyConnector').classList.remove('hidden');
+                                document.getElementById('mainXLogo').classList.add('hidden'); // Hide X logo on reply tweet
                                 captureCard.className = 'reply-tweet-card';
                                 
                                 // Populate original tweet
@@ -693,8 +702,7 @@
 
             } catch (err) {
                 console.error('Error in processTweet:', err);
-                console.error('Error stack:', err.stack);
-                statusMsg.innerText = "Error: " + (err.message || "Failed to fetch tweet. Check console for details.");
+                statusMsg.innerText = "Error: " + (err.message || "Failed to fetch tweet");
                 statusMsg.style.color = "#ff5555";
                 document.getElementById('genBtn').disabled = false;
             }
