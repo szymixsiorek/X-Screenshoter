@@ -24,7 +24,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-        /* GLOBAL RESET FOR BOX SIZING (Fixes overflow issues) */
         * { box-sizing: border-box; }
 
         :root {
@@ -74,7 +73,7 @@
             color: white;
             font-size: 16px;
             outline: none;
-            width: 100%; /* Ensure it doesn't overflow parent */
+            width: 100%;
         }
         input[type="text"]:focus { border-color: var(--accent); }
 
@@ -115,7 +114,6 @@
             word-break: break-all;
         }
 
-        /* --- UPDATED RESULT BOX STYLES --- */
         .result-box {
             display: none;
             margin-top: 15px;
@@ -123,7 +121,7 @@
             padding: 15px;
             border-radius: 8px;
             border: 1px solid #333;
-            width: 100%; /* Ensure container fits parent */
+            width: 100%;
         }
         .result-box.visible { display: block; }
         
@@ -134,8 +132,8 @@
         }
 
         .result-link {
-            flex-grow: 1; /* Takes available space */
-            min-width: 0; /* CRITICAL: Allows flex item to shrink below content size */
+            flex-grow: 1;
+            min-width: 0;
             background: #000;
             border: 1px solid #333;
             color: var(--accent);
@@ -159,21 +157,44 @@
         }
         .btn-open-link:hover { background: #444; }
 
+        .quality-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 10px;
+            padding: 10px;
+            background: #1a1a1a;
+            border-radius: 8px;
+        }
 
-        /* TWEET STYLES */
+        .quality-selector label {
+            font-size: 14px;
+            color: #aaa;
+        }
+
+        .quality-selector select {
+            padding: 6px 12px;
+            border-radius: 6px;
+            background: #000;
+            color: white;
+            border: 1px solid #444;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
         .tweet-card-wrapper {
             padding: 30px;
             border: 2px dashed #333;
             border-radius: 24px;
             background: #161616;
-            max-width: 100%; /* Prevent overflow on small screens */
+            max-width: 100%;
             overflow-x: auto;
         }
 
         .tweet-card {
             background-color: var(--bg-color);
             width: var(--card-width);
-            min-width: var(--card-width); /* Fixed width for canvas generation */
+            min-width: var(--card-width);
             padding: 30px;
             border-radius: 16px;
             box-sizing: border-box;
@@ -232,6 +253,22 @@
             color: var(--text-sec); font-size: 15px;
         }
         .hidden { display: none !important; }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #444;
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -243,6 +280,15 @@
             <button onclick="processTweet()" id="genBtn" class="btn-gen">Generate</button>
         </div>
         <div class="status-msg" id="statusMsg">Ready</div>
+
+        <div class="quality-selector">
+            <label for="qualitySelect">Image Quality:</label>
+            <select id="qualitySelect">
+                <option value="2">Standard (2x)</option>
+                <option value="3" selected>High (3x)</option>
+                <option value="4">Ultra (4x - slower)</option>
+            </select>
+        </div>
 
         <div class="result-box" id="resultBox">
             <div style="font-size: 12px; color: #aaa; margin-bottom: 8px;">Pixhost Direct Link:</div>
@@ -295,8 +341,74 @@
     </div>
 
     <script>
-        // Adres Twojego Workera (zostaje bez zmian)
-        const WORKER_URL = "https://pixhost-proxy.szymixsiorek.workers.dev"; 
+        const WORKER_URL = "https://pixhost-proxy.szymixsiorek.workers.dev";
+        
+        // Multiple proxy options for better reliability
+        const CORS_PROXIES = [
+            url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+            url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+            url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
+        ];
+
+        // Fetch with timeout
+        async function fetchWithTimeout(url, timeout = 10000) {
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), timeout);
+            
+            try {
+                const response = await fetch(url, { signal: controller.signal });
+                clearTimeout(id);
+                return response;
+            } catch (error) {
+                clearTimeout(id);
+                throw error;
+            }
+        }
+
+        // Try multiple proxies until one works
+        async function fetchWithProxy(url, proxies = CORS_PROXIES) {
+            let lastError;
+            
+            for (let i = 0; i < proxies.length; i++) {
+                try {
+                    const proxyUrl = proxies[i](url);
+                    const response = await fetchWithTimeout(proxyUrl, 8000);
+                    
+                    if (response.ok) {
+                        return response;
+                    }
+                } catch (error) {
+                    lastError = error;
+                    console.log(`Proxy ${i + 1} failed, trying next...`);
+                }
+            }
+            
+            throw lastError || new Error('All proxies failed');
+        }
+
+        // Preload image with timeout
+        function preloadImage(src, timeout = 10000) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = "anonymous";
+                
+                const timer = setTimeout(() => {
+                    reject(new Error('Image load timeout'));
+                }, timeout);
+                
+                img.onload = () => {
+                    clearTimeout(timer);
+                    resolve(img);
+                };
+                
+                img.onerror = () => {
+                    clearTimeout(timer);
+                    reject(new Error('Image load failed'));
+                };
+                
+                img.src = src;
+            });
+        }
 
         async function processTweet() {
             const url = document.getElementById('urlInput').value.trim();
@@ -317,53 +429,119 @@
             const tweetId = tweetIdMatch[1];
 
             btns.forEach(b => b.disabled = true);
-            statusMsg.innerText = "Fetching tweet data...";
+            statusMsg.innerHTML = "Fetching tweet data...<span class='loading-spinner'></span>";
             statusMsg.style.color = "#aaa";
 
             try {
                 const apiUrl = `https://api.fxtwitter.com/i/status/${tweetId}`;
-                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`;
                 
-                const response = await fetch(proxyUrl);
-                const dataWrapper = await response.json();
-                const data = JSON.parse(dataWrapper.contents);
+                // Try with proxy fallback
+                const response = await fetchWithProxy(apiUrl);
+                const text = await response.text();
+                const data = JSON.parse(text);
 
-                if (!data || !data.tweet) throw new Error("API Error or Private Account");
+                if (!data || !data.tweet) throw new Error("Tweet not found or private");
                 const t = data.tweet;
 
+                statusMsg.innerHTML = "Loading images...<span class='loading-spinner'></span>";
+
+                // Set text content first
                 setText('mainText', t.text);
                 setText('mainName', t.author.name);
                 setText('mainHandle', t.author.screen_name);
-                setAvatar('mainAvatar', t.author.avatar_url);
+                
                 const dateObj = new Date(t.created_timestamp * 1000);
                 setText('mainDate', formatDate(dateObj));
 
+                // Preload all images in parallel
+                const imagePromises = [];
+                
+                // Main avatar
+                const avatarUrl = getProxiedImageUrl(t.author.avatar_url);
+                imagePromises.push(
+                    preloadImage(avatarUrl).then(() => {
+                        document.getElementById('mainAvatar').src = avatarUrl;
+                    }).catch(err => console.log('Avatar load failed:', err))
+                );
+
+                // Main media
                 if (t.media && t.media.photos && t.media.photos.length > 0) {
-                    renderMediaGrid(t.media.photos, document.getElementById('mainMediaContainer'));
+                    const mediaPromise = renderMediaGrid(t.media.photos, document.getElementById('mainMediaContainer'));
+                    imagePromises.push(mediaPromise);
                 }
 
+                // Quote tweet
                 if (t.quote) {
                     const q = t.quote;
                     document.getElementById('quoteCard').classList.remove('hidden');
                     setText('quoteText', q.text);
                     setText('quoteName', q.author.name);
                     setText('quoteHandle', q.author.screen_name);
-                    setAvatar('quoteAvatar', q.author.avatar_url);
+                    
+                    const quoteAvatarUrl = getProxiedImageUrl(q.author.avatar_url);
+                    imagePromises.push(
+                        preloadImage(quoteAvatarUrl).then(() => {
+                            document.getElementById('quoteAvatar').src = quoteAvatarUrl;
+                        }).catch(err => console.log('Quote avatar load failed:', err))
+                    );
+                    
                     if (q.media && q.media.photos && q.media.photos.length > 0) {
-                        renderMediaGrid(q.media.photos, document.getElementById('quoteMediaContainer'));
+                        const quoteMediaPromise = renderMediaGrid(q.media.photos, document.getElementById('quoteMediaContainer'));
+                        imagePromises.push(quoteMediaPromise);
                     }
                 }
 
-                statusMsg.innerText = "Ready to download or upload.";
+                // Wait for all images to load
+                await Promise.allSettled(imagePromises);
+
+                statusMsg.innerText = "Ready! All images loaded.";
                 statusMsg.style.color = "#4caf50";
                 btns.forEach(b => b.disabled = false);
 
             } catch (err) {
                 console.error(err);
-                statusMsg.innerText = "Error: " + err.message;
+                statusMsg.innerText = "Error: " + (err.message || "Failed to fetch tweet");
                 statusMsg.style.color = "#ff5555";
                 document.getElementById('genBtn').disabled = false;
             }
+        }
+
+        function getProxiedImageUrl(url) {
+            if (!url) return '';
+            let cleanUrl = url.replace('_normal', '_400x400').replace('_bigger', '_400x400').replace('_mini', '_400x400');
+            return `https://wsrv.nl/?url=${encodeURIComponent(cleanUrl)}&output=png&n=-1`;
+        }
+
+        async function renderMediaGrid(photos, container) {
+            if (!photos) return;
+            const count = Math.min(photos.length, 4);
+            const grid = document.createElement('div');
+            grid.className = `media-grid m-${count}`;
+            
+            const imagePromises = [];
+            
+            photos.slice(0, count).forEach(photo => {
+                const img = document.createElement('img');
+                img.crossOrigin = "anonymous";
+                const proxiedUrl = `https://wsrv.nl/?url=${encodeURIComponent(photo.url)}&output=jpg&q=85&n=-1`;
+                
+                // Add placeholder
+                img.style.backgroundColor = '#333';
+                grid.appendChild(img);
+                
+                // Preload and set
+                imagePromises.push(
+                    preloadImage(proxiedUrl).then(() => {
+                        img.src = proxiedUrl;
+                    }).catch(err => {
+                        console.log('Media image load failed:', err);
+                        img.src = proxiedUrl; // Try anyway
+                    })
+                );
+            });
+            
+            container.appendChild(grid);
+            return Promise.allSettled(imagePromises);
         }
 
         async function uploadToPixhost() {
@@ -373,22 +551,27 @@
             const resultBox = document.getElementById('resultBox');
 
             if (WORKER_URL.includes("TUTAJ_WKLEJ")) {
-                alert("Błąd konfiguracji: Nie podałeś adresu Workera w kodzie HTML!");
+                alert("Configuration error: Worker URL not set!");
                 return;
             }
             
             btn.disabled = true;
-            btn.innerText = "Processing...";
-            statusMsg.innerText = "Rendering and uploading (via Cloudflare)...";
+            btn.innerHTML = "Processing...<span class='loading-spinner'></span>";
+            statusMsg.innerHTML = "Rendering screenshot...<span class='loading-spinner'></span>";
             statusMsg.style.color = "#aaa";
 
             try {
+                const quality = parseInt(document.getElementById('qualitySelect').value);
+                
                 const canvas = await html2canvas(element, {
                     backgroundColor: "#000000",
-                    scale: 3, 
+                    scale: quality,
                     useCORS: true,
-                    allowTaint: false
+                    allowTaint: false,
+                    logging: false
                 });
+
+                statusMsg.innerHTML = "Uploading to Pixhost...<span class='loading-spinner'></span>";
 
                 canvas.toBlob(async (blob) => {
                     const formData = new FormData();
@@ -396,13 +579,13 @@
                     formData.append("img", blob, "tweet_snapshot.jpg");
 
                     try {
-                        const response = await fetch(WORKER_URL, {
+                        const response = await fetchWithTimeout(WORKER_URL, 30000, {
                             method: "POST",
                             body: formData
                         });
 
                         if (!response.ok) {
-                            throw new Error(`Worker Error: ${response.status}`);
+                            throw new Error(`Upload failed: ${response.status}`);
                         }
 
                         const data = await response.json();
@@ -414,18 +597,17 @@
                             statusMsg.innerText = "Upload successful!";
                             statusMsg.style.color = "#00ba7c";
                             
-                            // Show result with link and open button
                             resultBox.classList.add('visible');
                             document.getElementById('resultLink').value = directLink;
                             document.getElementById('openLinkBtn').href = directLink;
 
                         } else {
-                            throw new Error("Invalid response from Pixhost.");
+                            throw new Error("Invalid response from Pixhost");
                         }
 
                     } catch (uploadErr) {
                         console.error(uploadErr);
-                        statusMsg.innerText = uploadErr.message;
+                        statusMsg.innerText = "Upload error: " + uploadErr.message;
                         statusMsg.style.color = "#ff5555";
                     } finally {
                         btn.innerText = "Upload to Pixhost";
@@ -436,33 +618,16 @@
 
             } catch (err) {
                 console.error(err);
-                statusMsg.innerText = "Error rendering image.";
+                statusMsg.innerText = "Render error: " + err.message;
+                statusMsg.style.color = "#ff5555";
                 btn.disabled = false;
                 btn.innerText = "Upload to Pixhost";
             }
         }
 
-        function setText(id, text) { document.getElementById(id).innerText = text || ""; }
-        
-        function setAvatar(id, url) {
-            if (!url) return;
-            let cleanUrl = url.replace('_normal', '_400x400').replace('_bigger', '_400x400').replace('_mini', '_400x400');
-            const proxyUrl = `https://wsrv.nl/?url=${encodeURIComponent(cleanUrl)}&output=png`;
-            document.getElementById(id).src = proxyUrl;
-        }
-
-        function renderMediaGrid(photos, container) {
-            if (!photos) return;
-            const count = Math.min(photos.length, 4);
-            const grid = document.createElement('div');
-            grid.className = `media-grid m-${count}`;
-            photos.slice(0, count).forEach(photo => {
-                const img = document.createElement('img');
-                img.crossOrigin = "anonymous";
-                img.src = `https://wsrv.nl/?url=${encodeURIComponent(photo.url)}&output=jpg&q=85`;
-                grid.appendChild(img);
-            });
-            container.appendChild(grid);
+        function setText(id, text) { 
+            const el = document.getElementById(id);
+            if (el) el.innerText = text || ""; 
         }
 
         function formatDate(date) {
@@ -472,27 +637,47 @@
             }).replace(',', ' ·');
         }
 
-        function downloadImage() {
+        async function downloadImage() {
             const el = document.getElementById("capture");
             const btn = document.getElementById('saveBtn');
-            btn.innerText = "Processing...";
+            const statusMsg = document.getElementById('statusMsg');
+            
+            btn.innerHTML = "Processing...<span class='loading-spinner'></span>";
             btn.disabled = true;
-            html2canvas(el, { 
-                backgroundColor: "#000000", 
-                scale: 3,
-                useCORS: true, 
-                allowTaint: false 
-            }).then(canvas => {
+            statusMsg.innerHTML = "Rendering screenshot...<span class='loading-spinner'></span>";
+            
+            try {
+                const quality = parseInt(document.getElementById('qualitySelect').value);
+                
+                const canvas = await html2canvas(el, { 
+                    backgroundColor: "#000000", 
+                    scale: quality,
+                    useCORS: true, 
+                    allowTaint: false,
+                    logging: false
+                });
+                
                 const link = document.createElement('a');
-                link.download = 'tweet_gen.jpg';
+                link.download = `tweet_${Date.now()}.jpg`;
                 link.href = canvas.toDataURL("image/jpeg", 0.95);
                 link.click();
+                
+                statusMsg.innerText = "Download started!";
+                statusMsg.style.color = "#4caf50";
+            } catch (err) {
+                console.error(err);
+                statusMsg.innerText = "Download error: " + err.message;
+                statusMsg.style.color = "#ff5555";
+            } finally {
                 btn.innerText = "Download JPG";
                 btn.disabled = false;
-            });
+            }
         }
+
+        // Allow Enter key to trigger generate
+        document.getElementById('urlInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') processTweet();
+        });
     </script>
 </body>
 </html>
-
-
