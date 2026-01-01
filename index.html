@@ -218,7 +218,16 @@
         .display-name { font-weight: 700; color: var(--text-main); font-size: 16px; display: flex; align-items: center; gap: 3px; }
         .verified-icon { width: 18px; height: 18px; fill: #1d9bf0; }
         .handle { color: var(--text-sec); font-size: 15px; }
-        .x-logo { width: 24px; height: 24px; fill: var(--text-main); }
+        .x-logo { width: 30px; height: 30px; fill: var(--text-main); }
+        
+        .tweet-link { color: var(--accent); text-decoration: none; }
+        
+        .replying-to {
+            color: var(--text-sec);
+            font-size: 15px;
+            margin-bottom: 8px;
+            margin-top: 2px;
+        }
 
         .tweet-content {
             font-size: 22px; line-height: 1.4; color: var(--text-main);
@@ -315,6 +324,7 @@
                 <svg viewBox="0 0 24 24" class="x-logo"><g><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></g></svg>
             </div>
 
+            <div class="replying-to hidden" id="replyingTo"></div>
             <div class="tweet-content" id="mainText"></div>
             <div id="mainMediaContainer"></div>
 
@@ -389,6 +399,27 @@
             throw lastError || new Error('All proxies failed');
         }
 
+        // Format text with blue hashtags and mentions
+        function formatText(text) {
+            if (!text) return '';
+            
+            // Escape HTML to prevent XSS
+            const div = document.createElement('div');
+            div.textContent = text;
+            let escaped = div.innerHTML;
+            
+            // Replace URLs with blue spans
+            escaped = escaped.replace(/(https?:\/\/[^\s]+)/g, '<span class="tweet-link">$1</span>');
+            
+            // Replace hashtags with blue spans
+            escaped = escaped.replace(/#(\w+)/g, '<span class="tweet-link">#$1</span>');
+            
+            // Replace mentions with blue spans
+            escaped = escaped.replace(/@(\w+)/g, '<span class="tweet-link">@$1</span>');
+            
+            return escaped;
+        }
+
         // Preload image with timeout
         function preloadImage(src, timeout = 10000) {
             return new Promise((resolve, reject) => {
@@ -422,6 +453,7 @@
             document.getElementById('mainMediaContainer').innerHTML = '';
             document.getElementById('quoteMediaContainer').innerHTML = '';
             document.getElementById('quoteCard').classList.add('hidden');
+            document.getElementById('replyingTo').classList.add('hidden');
             
             const tweetIdMatch = url.match(/\/status\/(\d+)/);
             if (!tweetIdMatch) {
@@ -449,9 +481,19 @@
                 statusMsg.innerHTML = "Loading images...<span class='loading-spinner'></span>";
 
                 // Set text content first
-                setText('mainText', t.text);
+                setFormattedText('mainText', t.text);
                 setText('mainName', t.author.name);
                 setText('mainHandle', t.author.screen_name);
+                
+                // Check if it's a reply
+                if (t.replying_to || t.reply_to) {
+                    const replyUsername = t.replying_to || t.reply_to;
+                    const replyEl = document.getElementById('replyingTo');
+                    replyEl.innerHTML = `Replying to <span class="tweet-link">@${replyUsername}</span>`;
+                    replyEl.classList.remove('hidden');
+                } else {
+                    document.getElementById('replyingTo').classList.add('hidden');
+                }
                 
                 const dateObj = new Date(t.created_timestamp * 1000);
                 setText('mainDate', formatDate(dateObj));
@@ -477,7 +519,7 @@
                 if (t.quote) {
                     const q = t.quote;
                     document.getElementById('quoteCard').classList.remove('hidden');
-                    setText('quoteText', q.text);
+                    setFormattedText('quoteText', q.text);
                     setText('quoteName', q.author.name);
                     setText('quoteHandle', q.author.screen_name);
                     
@@ -631,6 +673,11 @@
         function setText(id, text) { 
             const el = document.getElementById(id);
             if (el) el.innerText = text || ""; 
+        }
+        
+        function setFormattedText(id, text) { 
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = formatText(text) || ""; 
         }
 
         function formatDate(date) {
