@@ -332,7 +332,7 @@
         <h2>X Screenshot Generator</h2>
         <div class="input-row">
             <input type="text" id="urlInput" placeholder="Paste tweet URL..." />
-            <button onclick="console.log('Generate button clicked'); processTweet();" id="genBtn" class="btn-gen">Generate</button>
+            <button onclick="processTweet();" id="genBtn" class="btn-gen">Generate</button>
         </div>
         <div class="status-msg" id="statusMsg">Ready</div>
 
@@ -475,8 +475,6 @@
             const badge = document.getElementById(id);
             if (!badge) return;
             
-            console.log('Setting badge for', id, 'author:', author.screen_name, 'verified:', author.verified, 'blue_verified:', author.blue_verified, 'verified_type:', author.verified_type);
-            
             // Check if verified
             const isVerified = author.verified || author.blue_verified || author.verified_type;
             
@@ -496,11 +494,8 @@
                     goldVerifiedAccounts.includes(screenNameLower) ||
                     (author.verified && author.blue_verified === false);
                 
-                console.log('Is gold verified:', isGoldVerified, 'for', screenNameLower);
-                
                 if (isGoldVerified) {
                     badge.classList.add('gold');
-                    console.log('Added gold class to', id);
                 } else {
                     badge.classList.remove('gold');
                 }
@@ -566,7 +561,10 @@
             document.getElementById('quoteCard').classList.add('hidden');
             document.getElementById('originalTweet').classList.add('hidden');
             document.getElementById('replyConnector').classList.add('hidden');
-            document.getElementById('mainXLogo').classList.remove('hidden'); // Show X logo by default
+            
+            // Show/hide X logo
+            const mainXLogo = document.getElementById('mainXLogo');
+            if (mainXLogo) mainXLogo.classList.remove('hidden');
             
             // Reset card styling
             const captureCard = document.getElementById('capture');
@@ -617,7 +615,11 @@
                                 // Show original tweet
                                 document.getElementById('originalTweet').classList.remove('hidden');
                                 document.getElementById('replyConnector').classList.remove('hidden');
-                                document.getElementById('mainXLogo').classList.add('hidden'); // Hide X logo on reply tweet
+                                
+                                // Hide X logo on reply tweet
+                                const mainXLogo = document.getElementById('mainXLogo');
+                                if (mainXLogo) mainXLogo.classList.add('hidden');
+                                
                                 captureCard.className = 'reply-tweet-card';
                                 
                                 // Populate original tweet
@@ -891,14 +893,9 @@
         // Allow Enter key to trigger generate
         document.getElementById('urlInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                console.log('Enter key pressed');
                 processTweet();
             }
         });
-        
-        // Log when script loads
-        console.log('X Screenshot Generator loaded successfully');
-        console.log('Worker URL:', WORKER_URL);
     </script>
 </body>
 </html>
